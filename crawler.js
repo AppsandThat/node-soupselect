@@ -6,51 +6,82 @@ var select = require('./lib/soupselect').select,
 // fetch some HTML...
 var http = require('http');
 var HOST = 'en.wikipedia.org';
+//Test variable for link recursion
+var start_path = '/wiki/Main_Page'
 
-var req_options = {
-    host: HOST,
-    port: '80',
-    path: '/wiki/Main_Page',
-    method:'GET'
+var article_links = [];
+saveLinks = function(links) {
+    article_links = links;
+    //sys.puts(article_links);
+
 }
 
-var request = http.request(req_options, function(response){
-    response.setEncoding('utf8');
-    
-    var body = "";
-    response.on('data', function (chunk) {
-        body = body + chunk;
-    });
-    
-    //Evalutes true for only links that look like '/wiki/blablah1234blah'
-    link_regex = new RegExp("^/wiki/[A-Za-z0-9]*")
+function getLinks (path) {
+    var link_arr = [];
 
-    response.on('end', function() {
+    var req_options = {
+        host: 'en.wikipedia.org',
+        port: '80',
+        path: path,
+        method:'GET'
+    }
+
+    var request = http.request(req_options, function(response){
+        response.setEncoding('utf8');
         
-        // now we have the whole body, parse it and select the nodes we want...
-        var handler = new htmlparser.DefaultHandler(function(err, dom) {
-            if (err) {
-                sys.debug("Error: " + err);
-            } else {
-                
-                // soupselect happening here...
-                var links = select(dom, 'a');
-                
-                sys.puts("Links in wikipedia article");
-               
-                links.forEach(function(link) {
-                    if(link_regex.test(link.attribs.href)){
-                        sys.puts("- [" + link.attribs.href + "]\n");
-                    }
-                })
-            }
+        var body = "";
+        response.on('data', function (chunk) {
+            body = body + chunk;
+        });
+        
+        //Evalutes true for only links that look like '/wiki/blablah1234blah'
+        link_regex = new RegExp("^/wiki/[A-Za-z0-9]*")
+
+        response.on('end', function() {
+            
+            // now we have the whole body, parse it and select the nodes we want...
+            var handler = new htmlparser.DefaultHandler(function(err, dom) {
+                if (err) {
+                    sys.debug("Error: " + err);
+                } else {
+                    
+                    // soupselect happening here...
+                    var links = select(dom, 'a');
+                    
+                    //sys.puts("Links in wikipedia article");
+                   
+                    var cnt = 0;
+                    links.forEach(function(link) {
+                        if(link_regex.test(link.attribs.href) && link.attribs != path){
+                            cnt ++;
+                            link_arr[cnt] = link.attribs.href;
+                            console.log("the count is "+"- [" + link_arr[cnt] +"]\n");//link.attribs.href + "]\n");
+                        }
+                        
+                    })
+                }  
+    
+            });
+
+            var parser = new htmlparser.Parser(handler);
+            parser.parseComplete(body);
         });
 
-        var parser = new htmlparser.Parser(handler);
-        parser.parseComplete(body);
+
     });
+    request.end();
+  
+}
+/*
+//TODO: Make this inteface with app.js (to display the results on a webpage)
+exports.recurLinks = function (num_recur, start_path) {
 
+}
+*/
 
-});
-
-request.end();
+//console.log(getLinks(start_path));
+/*
+for (var i=0; i< article_links.length; i++) {
+    sys.puts(i+"a");
+    sys.puts(article_links[i]);
+}*/
